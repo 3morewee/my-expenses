@@ -6,12 +6,16 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="مصاريفي">
-  <title>$</title>
+  <title>مصاريفي - مربوط بقاعدة البيانات</title>
 
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Google Fonts: Cairo -->
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Firebase SDKs (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
   <style>
     :root {
@@ -24,332 +28,59 @@
       --accent-red: #ef4444;
       --accent-blue: #3b82f6;
       --accent-purple: #8b5cf6;
-      --accent-amber: #f59e0b;
       --radius: 16px;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Cairo', -apple-system, BlinkMacSystemFont, sans-serif;
-      -webkit-tap-highlight-color: transparent;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: var(--bg-color); color: var(--text-main); padding: 16px; padding-bottom: 40px; min-height: 100vh; display: flex; justify-content: center; }
+    .app-container { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 16px; }
 
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-main);
-      padding: 16px;
-      padding-bottom: 40px;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-    }
+    header { background: var(--card-bg); border: 1px solid var(--card-border); backdrop-filter: blur(12px); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .header-top { display: flex; justify-content: space-between; align-items: center; }
+    .app-title { font-size: 1.25rem; font-weight: 800; background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    
+    .sync-status { font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; font-weight: 700; background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
 
-    .app-container {
-      width: 100%;
-      max-width: 500px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
+    .month-picker-container { display: flex; align-items: center; justify-content: space-between; background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 12px; border: 1px solid var(--card-border); }
+    .month-btn { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--card-border); color: var(--text-main); padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+    .current-month-display { font-weight: 700; font-size: 1.05rem; color: var(--accent-blue); }
 
-    /* Header & Month Selector */
-    header {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      backdrop-filter: blur(12px);
-      border-radius: var(--radius);
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-    }
-
-    .header-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .app-title {
-      font-size: 1.25rem;
-      font-weight: 800;
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .month-picker-container {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: rgba(15, 23, 42, 0.6);
-      padding: 8px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--card-border);
-    }
-
-    .month-btn {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--card-border);
-      color: var(--text-main);
-      padding: 6px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.2s;
-    }
-
-    .month-btn:active {
-      background: rgba(255, 255, 255, 0.15);
-      transform: scale(0.95);
-    }
-
-    .current-month-display {
-      font-weight: 700;
-      font-size: 1.05rem;
-      color: var(--accent-blue);
-    }
-
-    /* Cards */
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      backdrop-filter: blur(12px);
-      border-radius: var(--radius);
-      padding: 16px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    }
-
-    .summary-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-    }
-
-    .summary-box {
-      background: rgba(15, 23, 42, 0.5);
-      border: 1px solid var(--card-border);
-      padding: 12px;
-      border-radius: 12px;
-      text-align: center;
-    }
-
-    .summary-title {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-      font-weight: 600;
-    }
-
-    .summary-amount {
-      font-size: 0.95rem;
-      font-weight: 800;
-      word-break: break-all;
-    }
-
+    .card { background: var(--card-bg); border: 1px solid var(--card-border); backdrop-filter: blur(12px); border-radius: var(--radius); padding: 16px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .summary-box { background: rgba(15, 23, 42, 0.5); border: 1px solid var(--card-border); padding: 12px; border-radius: 12px; text-align: center; }
+    .summary-title { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px; }
+    .summary-amount { font-size: 0.95rem; font-weight: 800; }
+    
     .text-green { color: var(--accent-green); }
     .text-red { color: var(--accent-red); }
     .text-blue { color: var(--accent-blue); }
 
-    /* Form */
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
+    .form-group { display: flex; flex-direction: column; gap: 10px; }
+    .form-title { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+    .type-toggle { display: flex; background: rgba(15, 23, 42, 0.6); padding: 4px; border-radius: 10px; border: 1px solid var(--card-border); }
+    .type-btn { flex: 1; padding: 8px; border: none; background: transparent; color: var(--text-muted); font-weight: 700; border-radius: 8px; cursor: pointer; }
+    .type-btn.active.expense { background: var(--accent-red); color: white; }
+    .type-btn.active.income { background: var(--accent-green); color: white; }
 
-    .form-title {
-      font-size: 1rem;
-      font-weight: 700;
-      margin-bottom: 4px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+    .input-field, .select-field { width: 100%; padding: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--card-border); border-radius: 10px; color: var(--text-main); font-size: 0.95rem; outline: none; }
+    .submit-btn { background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 1rem; cursor: pointer; }
 
-    .type-toggle {
-      display: flex;
-      background: rgba(15, 23, 42, 0.6);
-      padding: 4px;
-      border-radius: 10px;
-      border: 1px solid var(--card-border);
-    }
+    .transaction-list { display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; }
+    .transaction-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: rgba(15, 23, 42, 0.5); border: 1px solid var(--card-border); border-radius: 10px; }
+    .delete-btn { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); border: none; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-weight: bold; }
 
-    .type-btn {
-      flex: 1;
-      padding: 8px;
-      border: none;
-      background: transparent;
-      color: var(--text-muted);
-      font-weight: 700;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .type-btn.active.expense {
-      background: var(--accent-red);
-      color: white;
-    }
-
-    .type-btn.active.income {
-      background: var(--accent-green);
-      color: white;
-    }
-
-    .input-field, .select-field {
-      width: 100%;
-      padding: 12px;
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid var(--card-border);
-      border-radius: 10px;
-      color: var(--text-main);
-      font-size: 0.95rem;
-      outline: none;
-    }
-
-    .input-field:focus, .select-field:focus {
-      border-color: var(--accent-blue);
-    }
-
-    .submit-btn {
-      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 10px;
-      font-weight: 700;
-      font-size: 1rem;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-      transition: opacity 0.2s, transform 0.1s;
-    }
-
-    .submit-btn:active {
-      transform: scale(0.98);
-    }
-
-    /* Transactions List */
-    .list-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-
-    .transaction-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      max-height: 280px;
-      overflow-y: auto;
-      padding-left: 4px;
-    }
-
-    .transaction-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 12px;
-      background: rgba(15, 23, 42, 0.5);
-      border: 1px solid var(--card-border);
-      border-radius: 10px;
-    }
-
-    .trans-info {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .trans-title {
-      font-weight: 700;
-      font-size: 0.9rem;
-    }
-
-    .trans-meta {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
-
-    .trans-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .trans-amount {
-      font-weight: 800;
-      font-size: 0.95rem;
-    }
-
-    .delete-btn {
-      background: rgba(239, 68, 68, 0.15);
-      color: var(--accent-red);
-      border: none;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    /* Actions & Backup */
-    .actions-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .action-btn {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--card-border);
-      color: var(--text-main);
-      padding: 10px;
-      border-radius: 10px;
-      font-weight: 600;
-      font-size: 0.85rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-
-    .action-btn:active {
-      background: rgba(255, 255, 255, 0.12);
-    }
-
-    .chart-container {
-      position: relative;
-      height: 200px;
-      width: 100%;
-    }
-
-    .empty-state {
-      text-align: center;
-      color: var(--text-muted);
-      padding: 20px;
-      font-size: 0.85rem;
-    }
-
-    #fileInput {
-      display: none;
-    }
+    .chart-container { position: relative; height: 200px; width: 100%; }
+    .empty-state { text-align: center; color: var(--text-muted); padding: 20px; font-size: 0.85rem; }
   </style>
 </head>
 <body>
 
   <div class="app-container">
-    <!-- Header -->
     <header>
       <div class="header-top">
         <div class="app-title">📊 مصاريفي الشخصية</div>
+        <div class="sync-status">مربوط بالسيرفر ☁️</div>
       </div>
-      <!-- Month Navigation -->
       <div class="month-picker-container">
         <button class="month-btn" id="prevMonth">الشهر السابق</button>
         <div class="current-month-display" id="monthDisplay">---</div>
@@ -357,7 +88,6 @@
       </div>
     </header>
 
-    <!-- Summary -->
     <div class="summary-grid">
       <div class="summary-box">
         <div class="summary-title">الدخل</div>
@@ -373,19 +103,15 @@
       </div>
     </div>
 
-    <!-- Form -->
     <div class="card">
       <form id="transForm" class="form-group">
         <div class="form-title">إضافة عملية جديدة</div>
-        
         <div class="type-toggle">
           <button type="button" class="type-btn active expense" id="typeExpenseBtn" onclick="setType('expense')">مصروف</button>
           <button type="button" class="type-btn income" id="typeIncomeBtn" onclick="setType('income')">دخل</button>
         </div>
-
-        <input type="text" id="titleInput" class="input-field" placeholder="الوصف (مثال: مطعم، راتب)" required>
+        <input type="text" id="titleInput" class="input-field" placeholder="الوصف (مطعم، راتب)" required>
         <input type="number" id="amountInput" class="input-field" placeholder="المبلغ" step="any" required>
-        
         <select id="categorySelect" class="select-field">
           <option value="طعام ومأكولات">🍔 طعام ومأكولات</option>
           <option value="فواتير وسكن">🏠 فواتير وسكن</option>
@@ -395,12 +121,10 @@
           <option value="دخل">💰 دخل وراتب</option>
           <option value="أخرى">📦 أخرى</option>
         </select>
-
-        <button type="submit" class="submit-btn">حفظ العملية</button>
+        <button type="submit" class="submit-btn">حفظ في قاعدة البيانات</button>
       </form>
     </div>
 
-    <!-- Chart -->
     <div class="card">
       <div class="form-title">توزيع المصاريف</div>
       <div class="chart-container">
@@ -408,36 +132,39 @@
       </div>
     </div>
 
-    <!-- Transactions List -->
     <div class="card">
-      <div class="list-header">
-        <div class="form-title">سجل عمليات الشهر</div>
-      </div>
+      <div class="form-title">سجل عمليات الشهر</div>
       <div class="transaction-list" id="transactionList">
-        <div class="empty-state">لا توجد عمليات مسجلة لهذا الشهر</div>
-      </div>
-    </div>
-
-    <!-- Export & Backup Actions -->
-    <div class="card">
-      <div class="form-title" style="margin-bottom: 10px;">إدارة وحفظ البيانات (محلياً)</div>
-      <div class="actions-grid">
-        <button class="action-btn" onclick="exportToCSV()">📄 تصدير CSV (Excel)</button>
-        <button class="action-btn" onclick="exportJSON()">💾 نسخة احتياطية (JSON)</button>
-        <button class="action-btn" onclick="document.getElementById('fileInput').click()" style="grid-column: span 2;">📥 استعادة نسخة احتياطية</button>
-        <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)">
+        <div class="empty-state">جاري التحميل من السيرفر...</div>
       </div>
     </div>
   </div>
 
   <script>
-    // App State
+    // Firebase Config من حسابك
+    const firebaseConfig = {
+      apiKey: "AIzaSyChNzbIEpeII9NKvemzXxIpZrSIzAHAWnc",
+      authDomain: "my-expenses-db.firebaseapp.com",
+      projectId: "my-expenses-db",
+      storageBucket: "my-expenses-db.firebasestorage.app",
+      messagingSenderId: "415127126851",
+      appId: "1:415127126851:web:498a06413d1ae517ba25f6",
+      measurementId: "G-N5XDT3DH5Z"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Enable Offline Support
+    db.enablePersistence().catch(err => console.log("Offline mode ready"));
+
+    // State
     let currentDate = new Date();
     let currentType = 'expense';
-    let transactions = JSON.parse(localStorage.getItem('my_expenses_data')) || [];
+    let transactions = [];
     let chartInstance = null;
 
-    // Elements
     const monthDisplay = document.getElementById('monthDisplay');
     const totalIncomeEl = document.getElementById('totalIncome');
     const totalExpenseEl = document.getElementById('totalExpense');
@@ -445,26 +172,18 @@
     const transactionListEl = document.getElementById('transactionList');
     const transForm = document.getElementById('transForm');
 
-    // Init
     window.onload = () => {
       updateMonthDisplay();
-      renderApp();
-      
+      listenToDatabase();
+
       document.getElementById('prevMonth').addEventListener('click', () => changeMonth(-1));
       document.getElementById('nextMonth').addEventListener('click', () => changeMonth(1));
     };
 
     function setType(type) {
       currentType = type;
-      const expBtn = document.getElementById('typeExpenseBtn');
-      const incBtn = document.getElementById('typeIncomeBtn');
-      if (type === 'expense') {
-        expBtn.classList.add('active');
-        incBtn.classList.remove('active');
-      } else {
-        incBtn.classList.add('active');
-        expBtn.classList.remove('active');
-      }
+      document.getElementById('typeExpenseBtn').className = `type-btn ${type === 'expense' ? 'active expense' : ''}`;
+      document.getElementById('typeIncomeBtn').className = `type-btn ${type === 'income' ? 'active income' : ''}`;
     }
 
     function changeMonth(delta) {
@@ -485,6 +204,19 @@
       return `${year}-${month}`;
     }
 
+    // Realtime Listener
+    function listenToDatabase() {
+      db.collection("expenses").onSnapshot(snapshot => {
+        transactions = [];
+        snapshot.forEach(doc => {
+          transactions.push({ id: doc.id, ...doc.data() });
+        });
+        renderApp();
+      }, err => {
+        console.error("Firestore Error:", err);
+      });
+    }
+
     // Add Transaction
     transForm.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -495,7 +227,6 @@
       if (!title || isNaN(amount) || amount <= 0) return;
 
       const newTrans = {
-        id: Date.now(),
         title,
         amount,
         category,
@@ -504,31 +235,22 @@
         monthKey: getCurrentMonthKey()
       };
 
-      transactions.push(newTrans);
-      saveData();
-      
-      document.getElementById('titleInput').value = '';
-      document.getElementById('amountInput').value = '';
-      renderApp();
+      db.collection("expenses").add(newTrans).then(() => {
+        document.getElementById('titleInput').value = '';
+        document.getElementById('amountInput').value = '';
+      });
     });
 
+    // Delete Transaction
     function deleteTransaction(id) {
-      transactions = transactions.filter(t => t.id !== id);
-      saveData();
-      renderApp();
-    }
-
-    function saveData() {
-      localStorage.setItem('my_expenses_data', JSON.stringify(transactions));
+      db.collection("expenses").doc(id).delete();
     }
 
     function renderApp() {
       const currentMonthKey = getCurrentMonthKey();
       const monthTrans = transactions.filter(t => t.monthKey === currentMonthKey);
 
-      // Calculations
-      let income = 0;
-      let expense = 0;
+      let income = 0, expense = 0;
       monthTrans.forEach(t => {
         if (t.type === 'income') income += t.amount;
         else expense += t.amount;
@@ -538,7 +260,6 @@
       totalExpenseEl.textContent = expense.toLocaleString();
       netBalanceEl.textContent = (income - expense).toLocaleString();
 
-      // Render List
       transactionListEl.innerHTML = '';
       if (monthTrans.length === 0) {
         transactionListEl.innerHTML = `<div class="empty-state">لا توجد عمليات مسجلة لهذا الشهر</div>`;
@@ -550,15 +271,15 @@
           const dateStr = new Date(t.date).toLocaleDateString('ar', { day: 'numeric', month: 'numeric' });
 
           item.innerHTML = `
-            <div class="trans-info">
-              <div class="trans-title">${t.title}</div>
-              <div class="trans-meta">${t.category} • ${dateStr}</div>
+            <div>
+              <div style="font-weight:700;">${t.title}</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">${t.category} • ${dateStr}</div>
             </div>
-            <div class="trans-right">
-              <div class="trans-amount ${isInc ? 'text-green' : 'text-red'}">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="font-weight:800;" class="${isInc ? 'text-green' : 'text-red'}">
                 ${isInc ? '+' : '-'}${t.amount.toLocaleString()}
               </div>
-              <button class="delete-btn" onclick="deleteTransaction(${t.id})">✕</button>
+              <button class="delete-btn" onclick="deleteTransaction('${t.id}')">✕</button>
             </div>
           `;
           transactionListEl.appendChild(item);
@@ -580,14 +301,8 @@
       const labels = Object.keys(categories);
       const data = Object.values(categories);
 
-      if (chartInstance) {
-        chartInstance.destroy();
-      }
-
-      if (labels.length === 0) {
-        ctx.clearRect(0, 0, 200, 200);
-        return;
-      }
+      if (chartInstance) chartInstance.destroy();
+      if (labels.length === 0) { ctx.clearRect(0, 0, 200, 200); return; }
 
       chartInstance = new Chart(ctx, {
         type: 'doughnut',
@@ -595,78 +310,16 @@
           labels: labels,
           datasets: [{
             data: data,
-            backgroundColor: [
-              '#ef4444', '#3b82f6', '#10b981', '#f59e0b', 
-              '#8b5cf6', '#ec4899', '#64748b'
-            ],
+            backgroundColor: ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b'],
             borderWidth: 0
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: { color: '#f8fafc', font: { family: 'Cairo', size: 11 } }
-            }
-          }
+          plugins: { legend: { position: 'bottom', labels: { color: '#f8fafc', font: { family: 'Cairo' } } } }
         }
       });
-    }
-
-    // Export CSV
-    function exportToCSV() {
-      const currentMonthKey = getCurrentMonthKey();
-      const monthTrans = transactions.filter(t => t.monthKey === currentMonthKey);
-
-      if (monthTrans.length === 0) {
-        alert('لا توجد بيانات لتصديرها لهذا الشهر.');
-        return;
-      }
-
-      let csvContent = "\uFEFFالنوع,الوصف,المبلغ,الفئة,التاريخ\n";
-      monthTrans.forEach(t => {
-        const typeStr = t.type === 'income' ? 'دخل' : 'مصروف';
-        const dateStr = new Date(t.date).toLocaleDateString('ar');
-        csvContent += `"${typeStr}","${t.title}","${t.amount}","${t.category}","${dateStr}"\n`;
-      });
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `مصاريف_${currentMonthKey}.csv`;
-      link.click();
-    }
-
-    // Export JSON
-    function exportJSON() {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(transactions));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `نسخة_احتياطية_مصاريفي_${getCurrentMonthKey()}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-    }
-
-    // Import JSON
-    function importJSON(event) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const importedData = JSON.parse(e.target.result);
-          if (Array.isArray(importedData)) {
-            transactions = importedData;
-            saveData();
-            renderApp();
-            alert('تم استعادة النسخة الاحتياطية بنجاح!');
-          }
-        } catch (err) {
-          alert('الملف غير صالح.');
-        }
-      };
-      reader.readAsText(event.target.files[0]);
     }
   </script>
 </body>
