@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>تتبع مصاريفي</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f3f4f6;
+            touch-action: manipulation;
+        }
+        /* Style adjustments for iOS safe area */
+        .safe-pb {
+            padding-bottom: env(safe-area-inset-bottom, 1rem);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col justify-between safe-pb">
+
+    <!-- Header -->
+    <header class="bg-indigo-600 text-white p-5 rounded-b-3xl shadow-lg pt-12">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold">مصاريفي الشخصية</h1>
+                <p class="text-xs text-indigo-200 mt-1">آمن ويحفظ محلياً على جهازك</p>
+            </div>
+            <button onclick="clearAllData()" class="text-xs bg-indigo-700 hover:bg-indigo-800 px-3 py-1.5 rounded-lg transition">
+                إعادة ضبط
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-md mx-auto w-full p-4 space-y-5 mb-auto">
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-3 gap-3">
+            <div class="bg-white p-3.5 rounded-2xl shadow-sm text-center border border-gray-100">
+                <p class="text-xs text-gray-500 mb-1">الدخل</p>
+                <p id="total-income" class="text-sm font-bold text-emerald-600">0$</p>
+            </div>
+            <div class="bg-white p-3.5 rounded-2xl shadow-sm text-center border border-gray-100">
+                <p class="text-xs text-gray-500 mb-1">المصاريف</p>
+                <p id="total-expense" class="text-sm font-bold text-rose-600">0$</p>
+            </div>
+            <div class="bg-white p-3.5 rounded-2xl shadow-sm text-center border border-gray-100">
+                <p class="text-xs text-gray-500 mb-1">الرصيد</p>
+                <p id="net-balance" class="text-sm font-bold text-indigo-600">0$</p>
+            </div>
+        </div>
+
+        <!-- Add Transaction Form -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-3">
+            <h2 class="text-sm font-bold text-gray-700 mb-2">إضافة عملية جديدة</h2>
+            
+            <form id="transaction-form" onsubmit="handleAddTransaction(event)" class="space-y-3">
+                <div class="flex gap-2">
+                    <button type="button" id="btn-expense" onclick="setType('expense')" 
+                            class="flex-1 py-2 text-sm font-semibold rounded-xl bg-rose-500 text-white shadow-sm">
+                        مصروف (-)
+                    </button>
+                    <button type="button" id="btn-income" onclick="setType('income')" 
+                            class="flex-1 py-2 text-sm font-semibold rounded-xl bg-gray-100 text-gray-600">
+                        دخل (+)
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="number" id="amount" placeholder="المبلغ" step="0.01" required
+                           class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+                    
+                    <select id="category" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+                        <!-- Options will be populated dynamically -->
+                    </select>
+                </div>
+
+                <input type="text" id="note" placeholder="ملاحظة أو بيان (اختياري)" 
+                       class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-sm transition">
+                    حفظ العملية
+                </button>
+            </form>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+            <h2 class="text-sm font-bold text-gray-700 mb-3">توزيع المصاريف حسب الفئة</h2>
+            <div class="relative h-48 w-full flex justify-center items-center">
+                <canvas id="expenseChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Transactions History -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-sm font-bold text-gray-700">سجل العمليات</h2>
+                <span id="transaction-count" class="text-xs text-gray-400">0 عمليات</span>
+            </div>
+            <div id="transaction-list" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                <!-- Transactions rendered dynamically -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Script Logic -->
+    <script>
+        // State
+        let currentType = 'expense';
+        let transactions = JSON.parse(localStorage.getItem('my_expenses_data')) || [];
+
+        const categories = {
+            expense: ['طعام ومطاعم', 'فواتير وسكن', 'مواصلات', 'تسوق', 'ترفيه', 'صحة', 'أخرى'],
+            income: ['راتب', 'عمل حر', 'استثمار', 'هدية', 'أخرى']
+        };
+
+        let chartInstance = null;
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', () => {
+            updateCategoryOptions();
+            renderUI();
+        });
+
+        // Set Transaction Type (Expense / Income)
+        function setType(type) {
+            currentType = type;
+            const btnExpense = document.getElementById('btn-expense');
+            const btnIncome = document.getElementById('btn-income');
+
+            if (type === 'expense') {
+                btnExpense.className = 'flex-1 py-2 text-sm font-semibold rounded-xl bg-rose-500 text-white shadow-sm';
+                btnIncome.className = 'flex-1 py-2 text-sm font-semibold rounded-xl bg-gray-100 text-gray-600';
+            } else {
+                btnIncome.className = 'flex-1 py-2 text-sm font-semibold rounded-xl bg-emerald-500 text-white shadow-sm';
+                btnExpense.className = 'flex-1 py-2 text-sm font-semibold rounded-xl bg-gray-100 text-gray-600';
+            }
+            updateCategoryOptions();
+        }
+
+        // Dynamic Categories
+        function updateCategoryOptions() {
+            const select = document.getElementById('category');
+            select.innerHTML = categories[currentType]
+                .map(cat => `<option value="${cat}">${cat}</option>`)
+                .join('');
+        }
+
+        // Handle Form Submission
+        function handleAddTransaction(e) {
+            e.preventDefault();
+            const amountInput = document.getElementById('amount');
+            const categorySelect = document.getElementById('category');
+            const noteInput = document.getElementById('note');
+
+            const amount = parseFloat(amountInput.value);
+            if (!amount || amount <= 0) return;
+
+            const newTransaction = {
+                id: Date.now(),
+                type: currentType,
+                amount: amount,
+                category: categorySelect.value,
+                note: noteInput.value.trim(),
+                date: new Date().toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })
+            };
+
+            transactions.unshift(newTransaction);
+            saveData();
+            renderUI();
+
+            // Reset Input Fields
+            amountInput.value = '';
+            noteInput.value = '';
+        }
+
+        // Delete Transaction
+        function deleteTransaction(id) {
+            transactions = transactions.filter(t => t.id !== id);
+            saveData();
+            renderUI();
+        }
+
+        // Save to LocalStorage
+        function saveData() {
+            localStorage.setItem('my_expenses_data', JSON.stringify(transactions));
+        }
+
+        // Clear All Data
+        function clearAllData() {
+            if (confirm('هل أنت تأكد من إزالة جميع البيانات المكتوبة؟')) {
+                transactions = [];
+                saveData();
+                renderUI();
+            }
+        }
+
+        // Render UI Updates
+        function renderUI() {
+            // Calculate Totals
+            const incomeTotal = transactions
+                .filter(t => t.type === 'income')
+                .reduce((acc, t) => acc + t.amount, 0);
+
+            const expenseTotal = transactions
+                .filter(t => t.type === 'expense')
+                .reduce((acc, t) => acc + t.amount, 0);
+
+            const balance = incomeTotal - expenseTotal;
+
+            document.getElementById('total-income').innerText = `${incomeTotal.toLocaleString()} $`;
+            document.getElementById('total-expense').innerText = `${expenseTotal.toLocaleString()} $`;
+            document.getElementById('net-balance').innerText = `${balance.toLocaleString()} $`;
+            document.getElementById('transaction-count').innerText = `${transactions.length} عمليات`;
+
+            // Render List
+            const listEl = document.getElementById('transaction-list');
+            if (transactions.length === 0) {
+                listEl.innerHTML = `<p class="text-center text-xs text-gray-400 py-6">لا يوجد سجل عمليات بعد</p>`;
+            } else {
+                listEl.innerHTML = transactions.map(t => `
+                    <div class="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                                t.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
+                            }">
+                                ${t.type === 'income' ? '+' : '-'}
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold text-gray-800">${t.category}</p>
+                                <p class="text-[10px] text-gray-400">${t.note ? t.note + ' • ' : ''}${t.date}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold ${t.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}">
+                                ${t.type === 'income' ? '+' : '-'}${t.amount.toLocaleString()} $
+                            </span>
+                            <button onclick="deleteTransaction(${t.id})" class="text-gray-300 hover:text-rose-500 text-xs px-1">✕</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Render Chart
+            renderChart();
+        }
+
+        // Render Expense Pie Chart
+        function renderChart() {
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            
+            // Group expenses by category
+            const expenseMap = {};
+            transactions
+                .filter(t => t.type === 'expense')
+                .forEach(t => {
+                    expenseMap[t.category] = (expenseMap[t.category] || 0) + t.amount;
+                });
+
+            const labels = Object.keys(expenseMap);
+            const data = Object.values(expenseMap);
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            if (data.length === 0) {
+                chartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['لا توجد مصاريف'],
+                        datasets: [{ data: [1], backgroundColor: ['#e5e7eb'] }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                });
+                return;
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: ['#f43f5e', '#6366f1', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#64748b'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 10, font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
