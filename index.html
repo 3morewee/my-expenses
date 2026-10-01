@@ -1,312 +1,673 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>تتبع مصاريفي</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f3f4f6;
-            touch-action: manipulation;
-        }
-        /* Style adjustments for iOS safe area */
-        .safe-pb {
-            padding-bottom: env(safe-area-inset-bottom, 1rem);
-        }
-    </style>
-</head>
-<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col justify-between safe-pb">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="مصاريفي">
+  <title>تطبيق تتبع المصاريف والدخل</title>
 
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Google Fonts: Cairo -->
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-blue: #3b82f6;
+      --accent-purple: #8b5cf6;
+      --accent-amber: #f59e0b;
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Cairo', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 16px;
+      padding-bottom: 40px;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Header & Month Selector */
+    header {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(12px);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .app-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .month-picker-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 8px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+    }
+
+    .month-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .month-btn:active {
+      background: rgba(255, 255, 255, 0.15);
+      transform: scale(0.95);
+    }
+
+    .current-month-display {
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--accent-blue);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(12px);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .summary-box {
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--card-border);
+      padding: 12px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .summary-title {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .summary-amount {
+      font-size: 0.95rem;
+      font-weight: 800;
+      word-break: break-all;
+    }
+
+    .text-green { color: var(--accent-green); }
+    .text-red { color: var(--accent-red); }
+    .text-blue { color: var(--accent-blue); }
+
+    /* Form */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .form-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .type-toggle {
+      display: flex;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+    }
+
+    .type-btn {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .type-btn.active.expense {
+      background: var(--accent-red);
+      color: white;
+    }
+
+    .type-btn.active.income {
+      background: var(--accent-green);
+      color: white;
+    }
+
+    .input-field, .select-field {
+      width: 100%;
+      padding: 12px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      color: var(--text-main);
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .input-field:focus, .select-field:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .submit-btn {
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .submit-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Transactions List */
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .transaction-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 280px;
+      overflow-y: auto;
+      padding-left: 4px;
+    }
+
+    .transaction-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+    }
+
+    .trans-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .trans-title {
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .trans-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .trans-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .trans-amount {
+      font-weight: 800;
+      font-size: 0.95rem;
+    }
+
+    .delete-btn {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--accent-red);
+      border: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    /* Actions & Backup */
+    .actions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .action-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 10px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .action-btn:active {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .chart-container {
+      position: relative;
+      height: 200px;
+      width: 100%;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 20px;
+      font-size: 0.85rem;
+    }
+
+    #fileInput {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
     <!-- Header -->
-    <header class="bg-indigo-600 text-white p-5 rounded-b-3xl shadow-lg pt-12">
-        <div class="max-w-md mx-auto flex justify-between items-center">
-            <div>
-                <h1 class="text-2xl font-bold">مصاريفي الشخصية</h1>
-                <p class="text-xs text-indigo-200 mt-1">آمن ويحفظ محلياً على جهازك</p>
-            </div>
-            <button onclick="clearAllData()" class="text-xs bg-indigo-700 hover:bg-indigo-800 px-3 py-1.5 rounded-lg transition">
-                إعادة ضبط
-            </button>
-        </div>
+    <header>
+      <div class="header-top">
+        <div class="app-title">📊 مصاريفي الشخصية</div>
+      </div>
+      <!-- Month Navigation -->
+      <div class="month-picker-container">
+        <button class="month-btn" id="prevMonth">الشهر السابق</button>
+        <div class="current-month-display" id="monthDisplay">---</div>
+        <button class="month-btn" id="nextMonth">الشهر التالي</button>
+      </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="max-w-md mx-auto w-full p-4 space-y-5 mb-auto">
+    <!-- Summary -->
+    <div class="summary-grid">
+      <div class="summary-box">
+        <div class="summary-title">الدخل</div>
+        <div class="summary-amount text-green" id="totalIncome">0</div>
+      </div>
+      <div class="summary-box">
+        <div class="summary-title">المصاريف</div>
+        <div class="summary-amount text-red" id="totalExpense">0</div>
+      </div>
+      <div class="summary-box">
+        <div class="summary-title">المتبقي</div>
+        <div class="summary-amount text-blue" id="netBalance">0</div>
+      </div>
+    </div>
 
-        <!-- Summary Cards -->
-        <div class="grid grid-cols-3 gap-3">
-            <div class="bg-white p-3.5 rounded-2xl shadow-sm text-center border border-gray-100">
-                <p class="text-xs text-gray-500 mb-1">الدخل</p>
-                <p id="total-income" class="text-sm font-bold text-emerald-600">0$</p>
-            </div>
-            <div class="bg-white p-3.5 rounded-2xl shadow-sm text-center border border-gray-100">
-                <p class="text-xs text-gray-500 mb-1">المصاريف</p>
-                <p id="total-expense" class="text-sm font-bold text-rose-600">0$</p>
-            </div>
-            <div class="bg-white p-3.5 rounded-2xl shadow-sm text-center border border-gray-100">
-                <p class="text-xs text-gray-500 mb-1">الرصيد</p>
-                <p id="net-balance" class="text-sm font-bold text-indigo-600">0$</p>
-            </div>
+    <!-- Form -->
+    <div class="card">
+      <form id="transForm" class="form-group">
+        <div class="form-title">إضافة عملية جديدة</div>
+        
+        <div class="type-toggle">
+          <button type="button" class="type-btn active expense" id="typeExpenseBtn" onclick="setType('expense')">مصروف</button>
+          <button type="button" class="type-btn income" id="typeIncomeBtn" onclick="setType('income')">دخل</button>
         </div>
 
-        <!-- Add Transaction Form -->
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-3">
-            <h2 class="text-sm font-bold text-gray-700 mb-2">إضافة عملية جديدة</h2>
-            
-            <form id="transaction-form" onsubmit="handleAddTransaction(event)" class="space-y-3">
-                <div class="flex gap-2">
-                    <button type="button" id="btn-expense" onclick="setType('expense')" 
-                            class="flex-1 py-2 text-sm font-semibold rounded-xl bg-rose-500 text-white shadow-sm">
-                        مصروف (-)
-                    </button>
-                    <button type="button" id="btn-income" onclick="setType('income')" 
-                            class="flex-1 py-2 text-sm font-semibold rounded-xl bg-gray-100 text-gray-600">
-                        دخل (+)
-                    </button>
-                </div>
+        <input type="text" id="titleInput" class="input-field" placeholder="الوصف (مثال: مطعم، راتب)" required>
+        <input type="number" id="amountInput" class="input-field" placeholder="المبلغ" step="any" required>
+        
+        <select id="categorySelect" class="select-field">
+          <option value="طعام ومأكولات">🍔 طعام ومأكولات</option>
+          <option value="فواتير وسكن">🏠 فواتير وسكن</option>
+          <option value="مواصلات">السيارة والمواصلات</option>
+          <option value="تسوق وترفيه">🛍️ تسوق وترفيه</option>
+          <option value="صحة">💊 صحة وطبابة</option>
+          <option value="دخل">💰 دخل وراتب</option>
+          <option value="أخرى">📦 أخرى</option>
+        </select>
 
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="number" id="amount" placeholder="المبلغ" step="0.01" required
-                           class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
-                    
-                    <select id="category" class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
-                        <!-- Options will be populated dynamically -->
-                    </select>
-                </div>
+        <button type="submit" class="submit-btn">حفظ العملية</button>
+      </form>
+    </div>
 
-                <input type="text" id="note" placeholder="ملاحظة أو بيان (اختياري)" 
-                       class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+    <!-- Chart -->
+    <div class="card">
+      <div class="form-title">توزيع المصاريف</div>
+      <div class="chart-container">
+        <canvas id="expenseChart"></canvas>
+      </div>
+    </div>
 
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-xl text-sm transition">
-                    حفظ العملية
-                </button>
-            </form>
-        </div>
+    <!-- Transactions List -->
+    <div class="card">
+      <div class="list-header">
+        <div class="form-title">سجل عمليات الشهر</div>
+      </div>
+      <div class="transaction-list" id="transactionList">
+        <div class="empty-state">لا توجد عمليات مسجلة لهذا الشهر</div>
+      </div>
+    </div>
 
-        <!-- Chart Section -->
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-            <h2 class="text-sm font-bold text-gray-700 mb-3">توزيع المصاريف حسب الفئة</h2>
-            <div class="relative h-48 w-full flex justify-center items-center">
-                <canvas id="expenseChart"></canvas>
+    <!-- Export & Backup Actions -->
+    <div class="card">
+      <div class="form-title" style="margin-bottom: 10px;">إدارة وحفظ البيانات (محلياً)</div>
+      <div class="actions-grid">
+        <button class="action-btn" onclick="exportToCSV()">📄 تصدير CSV (Excel)</button>
+        <button class="action-btn" onclick="exportJSON()">💾 نسخة احتياطية (JSON)</button>
+        <button class="action-btn" onclick="document.getElementById('fileInput').click()" style="grid-column: span 2;">📥 استعادة نسخة احتياطية</button>
+        <input type="file" id="fileInput" accept=".json" onchange="importJSON(event)">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // App State
+    let currentDate = new Date();
+    let currentType = 'expense';
+    let transactions = JSON.parse(localStorage.getItem('my_expenses_data')) || [];
+    let chartInstance = null;
+
+    // Elements
+    const monthDisplay = document.getElementById('monthDisplay');
+    const totalIncomeEl = document.getElementById('totalIncome');
+    const totalExpenseEl = document.getElementById('totalExpense');
+    const netBalanceEl = document.getElementById('netBalance');
+    const transactionListEl = document.getElementById('transactionList');
+    const transForm = document.getElementById('transForm');
+
+    // Init
+    window.onload = () => {
+      updateMonthDisplay();
+      renderApp();
+      
+      document.getElementById('prevMonth').addEventListener('click', () => changeMonth(-1));
+      document.getElementById('nextMonth').addEventListener('click', () => changeMonth(1));
+    };
+
+    function setType(type) {
+      currentType = type;
+      const expBtn = document.getElementById('typeExpenseBtn');
+      const incBtn = document.getElementById('typeIncomeBtn');
+      if (type === 'expense') {
+        expBtn.classList.add('active');
+        incBtn.classList.remove('active');
+      } else {
+        incBtn.classList.add('active');
+        expBtn.classList.remove('active');
+      }
+    }
+
+    function changeMonth(delta) {
+      currentDate.setMonth(currentDate.getMonth() + delta);
+      updateMonthDisplay();
+      renderApp();
+    }
+
+    function updateMonthDisplay() {
+      const year = currentDate.getFullYear();
+      const month = currentDate.toLocaleString('ar', { month: 'long' });
+      monthDisplay.textContent = `${month} ${year}`;
+    }
+
+    function getCurrentMonthKey() {
+      const year = currentDate.getFullYear();
+      const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+      return `${year}-${month}`;
+    }
+
+    // Add Transaction
+    transForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const title = document.getElementById('titleInput').value.trim();
+      const amount = parseFloat(document.getElementById('amountInput').value);
+      const category = document.getElementById('categorySelect').value;
+
+      if (!title || isNaN(amount) || amount <= 0) return;
+
+      const newTrans = {
+        id: Date.now(),
+        title,
+        amount,
+        category,
+        type: currentType,
+        date: new Date().toISOString(),
+        monthKey: getCurrentMonthKey()
+      };
+
+      transactions.push(newTrans);
+      saveData();
+      
+      document.getElementById('titleInput').value = '';
+      document.getElementById('amountInput').value = '';
+      renderApp();
+    });
+
+    function deleteTransaction(id) {
+      transactions = transactions.filter(t => t.id !== id);
+      saveData();
+      renderApp();
+    }
+
+    function saveData() {
+      localStorage.setItem('my_expenses_data', JSON.stringify(transactions));
+    }
+
+    function renderApp() {
+      const currentMonthKey = getCurrentMonthKey();
+      const monthTrans = transactions.filter(t => t.monthKey === currentMonthKey);
+
+      // Calculations
+      let income = 0;
+      let expense = 0;
+      monthTrans.forEach(t => {
+        if (t.type === 'income') income += t.amount;
+        else expense += t.amount;
+      });
+
+      totalIncomeEl.textContent = income.toLocaleString();
+      totalExpenseEl.textContent = expense.toLocaleString();
+      netBalanceEl.textContent = (income - expense).toLocaleString();
+
+      // Render List
+      transactionListEl.innerHTML = '';
+      if (monthTrans.length === 0) {
+        transactionListEl.innerHTML = `<div class="empty-state">لا توجد عمليات مسجلة لهذا الشهر</div>`;
+      } else {
+        monthTrans.slice().reverse().forEach(t => {
+          const item = document.createElement('div');
+          item.className = 'transaction-item';
+          const isInc = t.type === 'income';
+          const dateStr = new Date(t.date).toLocaleDateString('ar', { day: 'numeric', month: 'numeric' });
+
+          item.innerHTML = `
+            <div class="trans-info">
+              <div class="trans-title">${t.title}</div>
+              <div class="trans-meta">${t.category} • ${dateStr}</div>
             </div>
-        </div>
-
-        <!-- Transactions History -->
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-            <div class="flex justify-between items-center mb-3">
-                <h2 class="text-sm font-bold text-gray-700">سجل العمليات</h2>
-                <span id="transaction-count" class="text-xs text-gray-400">0 عمليات</span>
+            <div class="trans-right">
+              <div class="trans-amount ${isInc ? 'text-green' : 'text-red'}">
+                ${isInc ? '+' : '-'}${t.amount.toLocaleString()}
+              </div>
+              <button class="delete-btn" onclick="deleteTransaction(${t.id})">✕</button>
             </div>
-            <div id="transaction-list" class="space-y-2 max-h-60 overflow-y-auto pr-1">
-                <!-- Transactions rendered dynamically -->
-            </div>
-        </div>
-
-    </main>
-
-    <!-- Script Logic -->
-    <script>
-        // State
-        let currentType = 'expense';
-        let transactions = JSON.parse(localStorage.getItem('my_expenses_data')) || [];
-
-        const categories = {
-            expense: ['طعام ومطاعم', 'فواتير وسكن', 'مواصلات', 'تسوق', 'ترفيه', 'صحة', 'أخرى'],
-            income: ['راتب', 'عمل حر', 'استثمار', 'هدية', 'أخرى']
-        };
-
-        let chartInstance = null;
-
-        // Initialize App
-        document.addEventListener('DOMContentLoaded', () => {
-            updateCategoryOptions();
-            renderUI();
+          `;
+          transactionListEl.appendChild(item);
         });
+      }
 
-        // Set Transaction Type (Expense / Income)
-        function setType(type) {
-            currentType = type;
-            const btnExpense = document.getElementById('btn-expense');
-            const btnIncome = document.getElementById('btn-income');
+      renderChart(monthTrans);
+    }
 
-            if (type === 'expense') {
-                btnExpense.className = 'flex-1 py-2 text-sm font-semibold rounded-xl bg-rose-500 text-white shadow-sm';
-                btnIncome.className = 'flex-1 py-2 text-sm font-semibold rounded-xl bg-gray-100 text-gray-600';
-            } else {
-                btnIncome.className = 'flex-1 py-2 text-sm font-semibold rounded-xl bg-emerald-500 text-white shadow-sm';
-                btnExpense.className = 'flex-1 py-2 text-sm font-semibold rounded-xl bg-gray-100 text-gray-600';
+    function renderChart(monthTrans) {
+      const ctx = document.getElementById('expenseChart').getContext('2d');
+      const expenses = monthTrans.filter(t => t.type === 'expense');
+
+      const categories = {};
+      expenses.forEach(t => {
+        categories[t.category] = (categories[t.category] || 0) + t.amount;
+      });
+
+      const labels = Object.keys(categories);
+      const data = Object.values(categories);
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      if (labels.length === 0) {
+        ctx.clearRect(0, 0, 200, 200);
+        return;
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: [
+              '#ef4444', '#3b82f6', '#10b981', '#f59e0b', 
+              '#8b5cf6', '#ec4899', '#64748b'
+            ],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#f8fafc', font: { family: 'Cairo', size: 11 } }
             }
-            updateCategoryOptions();
+          }
         }
+      });
+    }
 
-        // Dynamic Categories
-        function updateCategoryOptions() {
-            const select = document.getElementById('category');
-            select.innerHTML = categories[currentType]
-                .map(cat => `<option value="${cat}">${cat}</option>`)
-                .join('');
-        }
+    // Export CSV
+    function exportToCSV() {
+      const currentMonthKey = getCurrentMonthKey();
+      const monthTrans = transactions.filter(t => t.monthKey === currentMonthKey);
 
-        // Handle Form Submission
-        function handleAddTransaction(e) {
-            e.preventDefault();
-            const amountInput = document.getElementById('amount');
-            const categorySelect = document.getElementById('category');
-            const noteInput = document.getElementById('note');
+      if (monthTrans.length === 0) {
+        alert('لا توجد بيانات لتصديرها لهذا الشهر.');
+        return;
+      }
 
-            const amount = parseFloat(amountInput.value);
-            if (!amount || amount <= 0) return;
+      let csvContent = "\uFEFFالنوع,الوصف,المبلغ,الفئة,التاريخ\n";
+      monthTrans.forEach(t => {
+        const typeStr = t.type === 'income' ? 'دخل' : 'مصروف';
+        const dateStr = new Date(t.date).toLocaleDateString('ar');
+        csvContent += `"${typeStr}","${t.title}","${t.amount}","${t.category}","${dateStr}"\n`;
+      });
 
-            const newTransaction = {
-                id: Date.now(),
-                type: currentType,
-                amount: amount,
-                category: categorySelect.value,
-                note: noteInput.value.trim(),
-                date: new Date().toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })
-            };
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `مصاريف_${currentMonthKey}.csv`;
+      link.click();
+    }
 
-            transactions.unshift(newTransaction);
+    // Export JSON
+    function exportJSON() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(transactions));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `نسخة_احتياطية_مصاريفي_${getCurrentMonthKey()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    // Import JSON
+    function importJSON(event) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const importedData = JSON.parse(e.target.result);
+          if (Array.isArray(importedData)) {
+            transactions = importedData;
             saveData();
-            renderUI();
-
-            // Reset Input Fields
-            amountInput.value = '';
-            noteInput.value = '';
+            renderApp();
+            alert('تم استعادة النسخة الاحتياطية بنجاح!');
+          }
+        } catch (err) {
+          alert('الملف غير صالح.');
         }
-
-        // Delete Transaction
-        function deleteTransaction(id) {
-            transactions = transactions.filter(t => t.id !== id);
-            saveData();
-            renderUI();
-        }
-
-        // Save to LocalStorage
-        function saveData() {
-            localStorage.setItem('my_expenses_data', JSON.stringify(transactions));
-        }
-
-        // Clear All Data
-        function clearAllData() {
-            if (confirm('هل أنت تأكد من إزالة جميع البيانات المكتوبة؟')) {
-                transactions = [];
-                saveData();
-                renderUI();
-            }
-        }
-
-        // Render UI Updates
-        function renderUI() {
-            // Calculate Totals
-            const incomeTotal = transactions
-                .filter(t => t.type === 'income')
-                .reduce((acc, t) => acc + t.amount, 0);
-
-            const expenseTotal = transactions
-                .filter(t => t.type === 'expense')
-                .reduce((acc, t) => acc + t.amount, 0);
-
-            const balance = incomeTotal - expenseTotal;
-
-            document.getElementById('total-income').innerText = `${incomeTotal.toLocaleString()} $`;
-            document.getElementById('total-expense').innerText = `${expenseTotal.toLocaleString()} $`;
-            document.getElementById('net-balance').innerText = `${balance.toLocaleString()} $`;
-            document.getElementById('transaction-count').innerText = `${transactions.length} عمليات`;
-
-            // Render List
-            const listEl = document.getElementById('transaction-list');
-            if (transactions.length === 0) {
-                listEl.innerHTML = `<p class="text-center text-xs text-gray-400 py-6">لا يوجد سجل عمليات بعد</p>`;
-            } else {
-                listEl.innerHTML = transactions.map(t => `
-                    <div class="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl border border-gray-100">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                                t.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
-                            }">
-                                ${t.type === 'income' ? '+' : '-'}
-                            </div>
-                            <div>
-                                <p class="text-xs font-semibold text-gray-800">${t.category}</p>
-                                <p class="text-[10px] text-gray-400">${t.note ? t.note + ' • ' : ''}${t.date}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-bold ${t.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}">
-                                ${t.type === 'income' ? '+' : '-'}${t.amount.toLocaleString()} $
-                            </span>
-                            <button onclick="deleteTransaction(${t.id})" class="text-gray-300 hover:text-rose-500 text-xs px-1">✕</button>
-                        </div>
-                    </div>
-                `).join('');
-            }
-
-            // Render Chart
-            renderChart();
-        }
-
-        // Render Expense Pie Chart
-        function renderChart() {
-            const ctx = document.getElementById('expenseChart').getContext('2d');
-            
-            // Group expenses by category
-            const expenseMap = {};
-            transactions
-                .filter(t => t.type === 'expense')
-                .forEach(t => {
-                    expenseMap[t.category] = (expenseMap[t.category] || 0) + t.amount;
-                });
-
-            const labels = Object.keys(expenseMap);
-            const data = Object.values(expenseMap);
-
-            if (chartInstance) {
-                chartInstance.destroy();
-            }
-
-            if (data.length === 0) {
-                chartInstance = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['لا توجد مصاريف'],
-                        datasets: [{ data: [1], backgroundColor: ['#e5e7eb'] }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                });
-                return;
-            }
-
-            chartInstance = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: data,
-                        backgroundColor: ['#f43f5e', '#6366f1', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#64748b'],
-                        borderWidth: 2,
-                        borderColor: '#ffffff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: { boxWidth: 10, font: { size: 10 } }
-                        }
-                    }
-                }
-            });
-        }
-    </script>
+      };
+      reader.readAsText(event.target.files[0]);
+    }
+  </script>
 </body>
 </html>
